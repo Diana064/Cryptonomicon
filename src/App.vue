@@ -168,7 +168,7 @@
 </template>
 
 <script>
-import { loadTicker } from './api';
+import {subscribeToTicker, unsubscribeFromTicker} from './api';
 export default {
 	name: 'App',
 	data() {
@@ -206,6 +206,9 @@ export default {
 		const tickersData = localStorage.getItem('cryptonomicon-list');
 		if (tickersData) {
 			this.tickers = JSON.parse(tickersData);
+      this.tickers.forEach(ticker => {
+        subscribeToTicker(ticker.name, (newPrice) =>  this.updateTicker(ticker.name, newPrice))
+      })
 		}
 		const coinsDate = localStorage.getItem('coins-list');
 		if (coinsDate) {
@@ -279,27 +282,17 @@ export default {
 	},
 
 	methods: {
+    updateTicker(tickerName, price){
+      this.tickers.filter(t=> t.name ===tickerName).forEach(t=> {t.price = price})
+    },
 		formatPrice(price) {
+      if(price === '-'){
+        console.log(price)
+        return price;
+      }
+      console.log(price)
 			price = Number(price);
 			return price > 1 ? price.toFixed(2) : price.toPrecision(2);
-		},
-		async updateTickers() {
-			if (!this.tickers.length) {
-				return;
-			}
-			const exchangeData = await loadTicker(
-				this.tickers.map((ticker) => ticker.name)
-			);
-			this.tickers.forEach((ticker) => {
-				const price = exchangeData[ticker.name.toUpperCase()];
-				if (!price) {
-					ticker.price = '-';
-					return;
-				}
-				const normilizedPrice = 1 / price;
-
-				ticker.price = normilizedPrice;
-			});
 		},
 		add() {
 			const currentTicker = { name: this.ticker, price: '-' };
@@ -311,7 +304,9 @@ export default {
 				this.ticker = '';
 			} else {
 				this.tickers = [...this.tickers, currentTicker];
+        this.ticker = '';
 				this.filter = '';
+        subscribeToTicker(currentTicker.name, (newPrice) => { this.updateTicker(currentTicker.name, newPrice)})
 				this.haveTicker = false;
 			}
 
@@ -322,9 +317,10 @@ export default {
 		handleDelete(tickerRemove) {
 			this.tickers = this.tickers.filter((t) => t !== tickerRemove);
 			localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
-			if (this.selectedTicker === tickerRemove) {
-				this.selectedTicker = null;
-			}
+			// if (this.selectedTicker === tickerRemove) {
+			// 	this.selectedTicker = null;
+			// }
+      unsubscribeFromTicker(tickerRemove.name, )
 		},
 
 		select(ticker) {
